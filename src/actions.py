@@ -1,52 +1,58 @@
-from enum import Enum
-from random import uniform as random_float
+from random import uniform as random_float, randint as random_int
 
 
-class ActionType(Enum):
-    FIRST_ATTACK = 1
-    SECOND_ATTACK = 2
-    HEAL = 3
-
-
-class Action:
-    def __init__(self, action_type, chance, function):
-        self.action_type = action_type
+class BaseAction:
+    def __init__(self, chance=1):
         self.chance = chance
-        self.function = function
+        self.chance_multiplier = 1
+        self.lower_limit = 0
+        self.upper_limit = 0
+
+    def perform(self, attacker, victim):
+        pass
+
+
+class AttackAction(BaseAction):
+    def __init__(self, min_damage, max_damage, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.min_damage = min_damage
+        self.max_damage = max_damage
+
+    def perform(self, attacker, victim):
+        damage = random_int(self.min_damage, self.max_damage)
+        victim.receive_damage(attacker=attacker, damage=damage)
+
+
+class HealAction(BaseAction):
+    def __init__(self, min_heal, max_heal, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.min_heal = min_heal
+        self.max_heal = max_heal
+
+    def perform(self, attacker, victim):
+        heal = random_int(self.min_heal, self.max_heal)
+        victim.receive_heal(heal)
 
 
 class ActionPicker:
-    def __init__(self, actions: list[Action], chance_multiply=None):
+    def __init__(self, actions):
+        self.actions = actions
         self.chances_sum = 0
-        self.action_chances = []
-        chance_multiply = chance_multiply if chance_multiply else {}
+        self.fill_chance_limits()
 
-        for action in actions:
-            mult = chance_multiply.get(action.action_type)
+    def fill_chance_limits(self):
+        for action in self.actions:
+            real_chance = action.chance * action.chance_multiplier
 
-            if mult:
-                new_chance = action.chance * mult
-                action_dict = {
-                    'instance': action,
-                    'lower_limit': self.chances_sum,
-                    'upper_limit': self.chances_sum + new_chance
-                }
-                self.chances_sum += new_chance
-            else:
-                action_dict = {
-                    'instance': action,
-                    'lower_limit': self.chances_sum,
-                    'upper_limit': self.chances_sum + action.chance
-                }
-                self.chances_sum += action.chance
-
-            self.action_chances.append(action_dict)
+            action.lower_limit = self.chances_sum
+            action.upper_limit = self.chances_sum + real_chance
+            self.chances_sum += real_chance
 
     def get_random_action(self):
         rf = random_float(0, self.chances_sum)
 
-        for action in self.action_chances:
-            if action['lower_limit'] <= rf < action['upper_limit']:
-                return action['instance']
+        for action in self.actions:
+            if action.lower_limit <= rf < action.upper_limit:
+                return action
 
-        return self.action_chances[-1]['instance']
+        return self.actions[-1]

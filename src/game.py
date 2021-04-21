@@ -1,135 +1,98 @@
-from random import randint as random_int
+import random
 
-from actions import ActionType, Action, ActionPicker
+from actions import ActionPicker, AttackAction, HealAction
 
 
-class BaseUnit:
-    FIRST_ATTACK_DAMAGE_RANGE = (18, 25)
-    SECOND_ATTACK_DAMAGE_RANGE = (10, 35)
-    HEAL_RANGE = (18, 25)
-
-    def __init__(self, health: int):
+class Unit:
+    def __init__(self, name: str, health: int):
+        self.name = name
         self.health = health
 
-        self.action_list = [
-            Action(
-                action_type=ActionType.FIRST_ATTACK,
-                chance=1.0,
-                callback=self.action_first_attack
-            ),
-            Action(
-                action_type=ActionType.SECOND_ATTACK,
-                chance=1.0,
-                callback=self.action_second_attack
-            ),
-            Action(
-                action_type=ActionType.HEAL,
-                chance=1.0,
-                callback=self.action_heal
-            )
+        self.actions = [
+            AttackAction(min_damage=18, max_damage=25),
+            AttackAction(min_damage=10, max_damage=35),
+            HealAction(min_heal=18, max_heal=25)
         ]
 
-    def attack(self, victim: 'BaseUnit'):
-        action_function = self.get_random_action_function()
-        action_function(victim)
+    def attack(self, victim: 'Unit'):
+        self.perform(victim)
 
-    def get_random_action_function(self):
-        action = ActionPicker(self.action_list).get_random_action()
-        return action.function
-
-    def action_first_attack(self, victim: 'BaseUnit'):
-        damage = random_int(*self.FIRST_ATTACK_DAMAGE_RANGE)
-        victim.receive_damage(attacker=self, damage=damage)
-
-    def action_second_attack(self, victim: 'BaseUnit'):
-        damage = random_int(*self.SECOND_ATTACK_DAMAGE_RANGE)
-        victim.receive_damage(attacker=self, damage=damage)
-
-    def action_heal(self, victim: 'BaseUnit'):
-        heal = random_int(*self.HEAL_RANGE)
-        self.receive_heal(heal)
+    def perform(self, victim):
+        action = ActionPicker(self.actions).get_random_action()
+        action.perform(attacker=self, victim=victim)
 
     def receive_heal(self, heal: int):
         self.health += heal
         print(f'{self.name} is healed by {heal}hp')
 
-    def receive_damage(self, attacker: 'BaseUnit', damage: int):
+    def receive_damage(self, attacker: 'Unit', damage: int):
         self.health -= damage
         print(f'{attacker.name} dealt {damage} damage to {self.name}')
 
-    @property
-    def name(self) -> str:
-        return type(self).__name__
+        if self.health <= 0:
+            print(f'### {self.name} died ###')
 
 
-class Player(BaseUnit):
-    pass
-
-
-class Computer(BaseUnit):
+class Computer(Unit):
     MIN_HEALTH_PERCENT_TO_MULTIPLY_HEAL_CHANCE = 35
-    HEALING_CHANCE_MULTIPLIER = 100
+    HEALING_CHANCE_MULTIPLIER = 2
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.start_health = self.health
 
-    def get_random_action_function(self):
+    def attack(self, victim: Unit):
         health_percent = self.health * 100 / self.start_health
 
         if health_percent > self.MIN_HEALTH_PERCENT_TO_MULTIPLY_HEAL_CHANCE:
-            action = ActionPicker(self.action_list).get_random_action()
-            return action.function
+            self.perform(victim)
+            return
 
         print(
             f'* Healing chance increases x{self.HEALING_CHANCE_MULTIPLIER}'
         )
 
-        action = ActionPicker(self.action_list, chance_multiply={
-                ActionType.HEAL: self.HEALING_CHANCE_MULTIPLIER
-            }
-        ).get_random_action()
-        return action.function
+        self.change_healing_chance_multiplier(self.HEALING_CHANCE_MULTIPLIER)
+        self.perform(victim)
+        self.change_healing_chance_multiplier(1)
+
+    def change_healing_chance_multiplier(self, multiplier):
+        for action in self.actions:
+            if isinstance(action, HealAction):
+                action.chance_multiplier = multiplier
 
 
 class Game:
-    def __init__(self, player: Player, computer: Computer):
-        self.player = player
-        self.computer = computer
+    def __init__(self, units: Unit):
+        self.units = units
         self.round = 0
 
+    def run(self):
+        while self.get_number_of_alive_units() > 1:
+            self.play()
+
     def play(self):
-        if random_int(0, 1):
-            self.player.attack(victim=self.computer)
-        else:
-            self.computer.attack(victim=self.player)
+        attacker, victim = random.sample(self.units, 2)
+        attacker.attack(victim)
 
         self.round += 1
         self.print_current_situation()
 
-    def is_game_over(self) -> bool:
-        if self.computer.health <= 0:
-            print(f'*** {self.player.name} won ***')
-            return True
-        elif self.player.health <= 0:
-            print(f'*** {self.computer.name} won ***')
-            return True
-
-        return False
-
     def print_current_situation(self):
-        print(
-            f'Current situation (round {self.round}):\n'
-            f'\tPlayer: {self.player.health}hp\n'
-            f'\tComputer: {self.computer.health}hp\n'
-        )
+        print(f'Round {self.round}, Units:')
+
+        for unit in self.units:
+            print(f'\t{unit.name}: {unit.health}hp')
+
+        print()
+
+    def get_number_of_alive_units(self) -> int:
+        return len([True for unit in self.units if unit.health > 0])
 
 
 if __name__ == '__main__':
-    game = Game(
-        player=Player(100),
-        computer=Computer(100)
-    )
-
-    while not game.is_game_over():
-        game.play()
+    game = Game([
+        Unit(name='Player', health=100),
+        Computer(name='Computer', health=100)
+    ])
+    game.run()
