@@ -1,4 +1,4 @@
-import random
+from random import sample as random_sample
 
 from actions import ActionPicker, AttackAction, HealAction
 
@@ -15,9 +15,6 @@ class Unit:
         ]
 
     def attack(self, victim: 'Unit'):
-        self.perform(victim)
-
-    def perform(self, victim):
         action = ActionPicker(self.actions).get_random_action()
         action.perform(attacker=self, victim=victim)
 
@@ -32,10 +29,13 @@ class Unit:
         if self.health <= 0:
             print(f'### {self.name} died ###')
 
+    def is_alive(self):
+        return self.health > 0
+
 
 class Computer(Unit):
     MIN_HEALTH_PERCENT_TO_MULTIPLY_HEAL_CHANCE = 35
-    HEALING_CHANCE_MULTIPLIER = 2
+    HEALING_CHANCE_MULTIPLIER = 5
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -45,15 +45,12 @@ class Computer(Unit):
         health_percent = self.health * 100 / self.start_health
 
         if health_percent > self.MIN_HEALTH_PERCENT_TO_MULTIPLY_HEAL_CHANCE:
-            self.perform(victim)
-            return
+            return super().attack(victim=victim)
 
-        print(
-            f'* Healing chance increases x{self.HEALING_CHANCE_MULTIPLIER}'
-        )
+        print(f'* Healing chance increases x{self.HEALING_CHANCE_MULTIPLIER}')
 
         self.change_healing_chance_multiplier(self.HEALING_CHANCE_MULTIPLIER)
-        self.perform(victim)
+        super().attack(victim=victim)
         self.change_healing_chance_multiplier(1)
 
     def change_healing_chance_multiplier(self, multiplier):
@@ -72,7 +69,9 @@ class Game:
             self.play()
 
     def play(self):
-        attacker, victim = random.sample(self.units, 2)
+        alive_units = self.get_alive_units()
+        attacker, victim = random_sample(alive_units, 2)
+
         attacker.attack(victim)
 
         self.round += 1
@@ -86,8 +85,11 @@ class Game:
 
         print()
 
+    def get_alive_units(self) -> list[Unit]:
+        return [unit for unit in self.units if unit.is_alive()]
+
     def get_number_of_alive_units(self) -> int:
-        return len([True for unit in self.units if unit.health > 0])
+        return len(self.get_alive_units())
 
 
 if __name__ == '__main__':

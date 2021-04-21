@@ -1,13 +1,15 @@
+from abc import ABC, abstractmethod
 from random import uniform as random_float, randint as random_int
 
 
-class BaseAction:
-    def __init__(self, chance=1):
+class BaseAction(ABC):
+    def __init__(self, chance=1, chance_multiplier=1):
         self.chance = chance
-        self.chance_multiplier = 1
+        self.chance_multiplier = chance_multiplier
         self.lower_limit = 0
         self.upper_limit = 0
 
+    @abstractmethod
     def perform(self, attacker, victim):
         pass
 
@@ -31,7 +33,7 @@ class HealAction(BaseAction):
 
     def perform(self, attacker, victim):
         heal = random_int(self.min_heal, self.max_heal)
-        victim.receive_heal(heal)
+        attacker.receive_heal(heal)
 
 
 class ActionPicker:
