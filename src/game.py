@@ -1,10 +1,10 @@
 from random import sample as random_sample
 
-from units import Unit
+from units.base import BaseUnit
 
 
 class Game:
-    def __init__(self, units: Unit):
+    def __init__(self, units: list[BaseUnit]):
         self.units = units
         self.round = 0
 
@@ -20,13 +20,13 @@ class Game:
         self.round += 1
         self.print_current_situation()
 
-    def get_alive_units(self) -> list[Unit]:
+    def get_alive_units(self) -> list[BaseUnit]:
         return [unit for unit in self.units if unit.is_alive()]
 
     def get_number_of_alive_units(self) -> int:
         return len(self.get_alive_units())
 
-    def get_random_alive_units(self, count: int):
+    def get_random_alive_units(self, count: int) -> list[BaseUnit]:
         alive_units = self.get_alive_units()
         return random_sample(alive_units, count)
 
