@@ -5,6 +5,7 @@ from units.base import BaseUnit
 
 
 class BaseAction(ABC):
+    """Абстрактный класс базового события."""
     def __init__(self, chance: Number = 1, chance_multiplier: Number = 1):
         self.chance = chance
         self.chance_multiplier = chance_multiplier
@@ -13,4 +14,5 @@ class BaseAction(ABC):
 
     @abstractmethod
     def perform(self, attacker: BaseUnit, victim: BaseUnit) -> None:
+        """Абстрактный метод выполнения события."""
         pass
